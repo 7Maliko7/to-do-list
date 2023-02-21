@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"log"
-	"math/rand"
 	"net/http"
-	"strconv"
+	"os"
 	"time"
 )
 
@@ -21,14 +21,24 @@ type Task struct {
 
 var TaskList []Task
 
+func wrightFile(file *os.File, taskList []Task) {
+	err := file.Truncate(0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	json.NewEncoder(file).Encode(taskList)
+
+}
+
 func CreateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		w.Header().Set("Content-Type", "application/json")
-		var NewTask Task
-		_ = json.NewDecoder(r.Body).Decode(&NewTask)
-		NewTask.Uuid = strconv.Itoa(rand.Intn(1000000))
-		TaskList = append(TaskList, NewTask)
-		json.NewEncoder(w).Encode(NewTask)
+		var newTask Task
+		_ = json.NewDecoder(r.Body).Decode(&newTask)
+		newTask.Uuid = uuid.New().String()
+		TaskList = append(TaskList, newTask)
+		json.NewEncoder(w).Encode(newTask)
+		wrightFile(file, TaskList)
 		return
 	}
 	http.Error(w, fmt.Sprintf("expect method POST at /create, got %v", r.Method), http.StatusMethodNotAllowed)
@@ -73,6 +83,7 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 			if v.Uuid == DeleteTask.Uuid {
 				TaskList = append(TaskList[:i], TaskList[i+1:]...)
 				json.NewEncoder(w).Encode(TaskList)
+				wrightFile(file, TaskList)
 				return
 			}
 		}
@@ -95,6 +106,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 				TaskList[i].Deadline = PatchTask.Deadline
 				TaskList[i].Status = PatchTask.Status
 				json.NewEncoder(w).Encode(TaskList[i])
+				wrightFile(file, TaskList)
 				return
 			}
 		}
@@ -105,11 +117,24 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+var file *os.File
+
 func main() {
 	http.HandleFunc("/create", CreateHandler)
 	http.HandleFunc("/list", ListHandler)
 	http.HandleFunc("/", GetHandler)
 	http.HandleFunc("/delete", DeleteHandler)
 	http.HandleFunc("/update", UpdateHandler)
+	var err error
+	file, err = os.OpenFile("tasks.json", os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		file.Close()
+	}()
+
+	_ = json.NewDecoder(file).Decode(&TaskList)
+
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
