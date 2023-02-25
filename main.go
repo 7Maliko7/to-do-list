@@ -21,17 +21,9 @@ type Task struct {
 
 var TaskList []Task
 
-func writeFile(taskList []Task) {
-	bytes, err := json.Marshal(taskList)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = os.WriteFile("tasks.json", bytes, 0777)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
+const (
+	taskFileName = "tasks.json"
+)
 
 func CreateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
@@ -41,7 +33,10 @@ func CreateHandler(w http.ResponseWriter, r *http.Request) {
 		newTask.Uuid = uuid.New().String()
 		TaskList = append(TaskList, newTask)
 		json.NewEncoder(w).Encode(newTask)
-		writeFile(TaskList)
+		err := writeFile(TaskList)
+		if err != nil {
+			log.Print(err)
+		}
 		return
 	}
 	http.Error(w, fmt.Sprintf("expect method POST at /create, got %v", r.Method), http.StatusMethodNotAllowed)
@@ -86,7 +81,10 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 			if v.Uuid == DeleteTask.Uuid {
 				TaskList = append(TaskList[:i], TaskList[i+1:]...)
 				json.NewEncoder(w).Encode(TaskList)
-				writeFile(TaskList)
+				err := writeFile(TaskList)
+				if err != nil {
+					log.Print(err)
+				}
 				return
 			}
 		}
@@ -109,7 +107,10 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 				TaskList[i].Deadline = PatchTask.Deadline
 				TaskList[i].Status = PatchTask.Status
 				json.NewEncoder(w).Encode(TaskList[i])
-				writeFile(TaskList)
+				err := writeFile(TaskList)
+				if err != nil {
+					log.Print(err)
+				}
 				return
 			}
 		}
@@ -134,8 +135,20 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
+func writeFile(taskList []Task) error {
+	bytes, err := json.Marshal(taskList)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(taskFileName, bytes, 0777)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func readTaskFile() error {
-	file, err := os.OpenFile("tasks.json", os.O_RDONLY, 0755)
+	file, err := os.OpenFile(taskFileName, os.O_RDONLY, 0755)
 	if err != nil {
 		return err
 	}
