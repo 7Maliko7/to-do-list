@@ -26,13 +26,11 @@ func writeFile(taskList []Task) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	saveBytes := make([]byte, 0, len(bytes))
-	saveBytes = append(saveBytes, bytes...)
-	err = os.WriteFile("tasks.json", saveBytes, 0777)
+
+	err = os.WriteFile("tasks.json", bytes, 0777)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
 
 func CreateHandler(w http.ResponseWriter, r *http.Request) {
@@ -123,6 +121,10 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	err := readTaskFile()
+	if err != nil {
+		log.Fatal(err)
+	}
 	http.HandleFunc("/create", CreateHandler)
 	http.HandleFunc("/list", ListHandler)
 	http.HandleFunc("/", GetHandler)
@@ -130,4 +132,17 @@ func main() {
 	http.HandleFunc("/update", UpdateHandler)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func readTaskFile() error {
+	file, err := os.OpenFile("tasks.json", os.O_RDONLY, 0755)
+	if err != nil {
+		return err
+	}
+	err = json.NewDecoder(file).Decode(&TaskList)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return nil
 }
