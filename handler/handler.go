@@ -1,16 +1,90 @@
-package main
+package handler
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/7Maliko7/to-do-list/handler"
+	"github.com/7Maliko7/to-do-list/structs"
+	"github.com/7Maliko7/to-do-list/task"
 	"github.com/google/uuid"
 	"log"
 	"net/http"
 	"os"
 )
 
+const (
+	headerContentType = "Content-Type"
+	contentTypeJson   = "application/json"
+	taskFileName = "tasks.json"
+)
 
+var TaskList []task.Task
+
+func makeResponse(w http.ResponseWriter, data any) error {
+	w.Header().Set(headerContentType, contentTypeJson)
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func makeErrorResponse(w http.ResponseWriter, e structs.ErrResponse){
+	msg,_ := json.Marshal(e)
+	http.Error(w, string(msg), e.Code)
+}
+
+func writeFile(taskList []task.Task) error {
+	bytes, err := json.Marshal(taskList)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(taskFileName, bytes, 0777)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateHandler(w http.ResponseWriter, r *http.Request) {
+	var err error
+	if r.Method == http.MethodPost {
+
+		var newTask task.Task
+		err = json.NewDecoder(r.Body).Decode(&newTask)
+		if err != nil{
+			e:= structs.ErrResponse{
+				Code: http.StatusBadRequest,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
+		}
+		newTask.Uuid = uuid.New().String()
+		TaskList = append(TaskList, newTask)
+
+		err = writeFile(TaskList)
+		if err != nil {
+			e:= structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
+		}
+		err = makeResponse(w, newTask)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		return
+	}
+	http.Error(w, fmt.Sprintf("expect method POST at /create, got %v", r.Method), http.StatusMethodNotAllowed)
+	return
+
+}
 
 func ListHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
@@ -87,31 +161,4 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Error(w, fmt.Sprintf("expect method PATCH at /delete, got %v", r.Method), http.StatusMethodNotAllowed)
 	return
-}
-
-func main() {
-	err := readTaskFile()
-	if err != nil {
-		log.Fatal(err)
-	}
-	http.HandleFunc("/create", handler.CreateHandler)
-	http.HandleFunc("/list", ListHandler)
-	http.HandleFunc("/", GetHandler)
-	http.HandleFunc("/delete", DeleteHandler)
-	http.HandleFunc("/update", UpdateHandler)
-
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
-
-func readTaskFile() error {
-	file, err := os.OpenFile(taskFileName, os.O_RDONLY, 0755)
-	if err != nil {
-		return err
-	}
-	err = json.NewDecoder(file).Decode(&TaskList)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	return nil
 }
