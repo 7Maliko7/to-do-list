@@ -9,3 +9,11 @@ type Task struct {
 	Status   string    `json:"status"`
 	Deadline time.Time `json:"deadline"`
 }
+
+type TaskCollection struct {
+	List []Task
+}
+
+func (tc *TaskCollection) DeleteTask(uuid string) {
+
+}
