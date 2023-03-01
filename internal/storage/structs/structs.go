@@ -3,12 +3,11 @@ package structs
 import "time"
 
 type GetListTaskResponse struct {
-	List []Task   `json:"list"`
+	List []Task `json:"list"`
 }
 
-type GetTaskResponse struct {
-	Task
-}
+type GetTaskResponse Task
+
 type Task struct {
 	Uuid     string    `json:"uuid"`
 	Name     string    `json:"name"`
@@ -22,7 +21,7 @@ type CreateTaskRequest struct {
 }
 
 type DeleteTaskRequest struct {
-	Uuid     string    `json:"uuid"`
+	Uuid string `json:"uuid"`
 }
 
 type UpdateTaskRequest struct {
@@ -30,9 +29,8 @@ type UpdateTaskRequest struct {
 }
 
 type GetTaskRequest struct {
-	Uuid     string    `json:"uuid"`
+	Uuid string `json:"uuid"`
 }
 type GetListTaskRequest struct {
-
 }
 
