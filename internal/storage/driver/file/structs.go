@@ -1,6 +1,8 @@
-package task
+package file
 
 import "time"
+
+type TaskList []Task
 
 type Task struct {
 	Uuid     string    `json:"uuid"`
@@ -8,12 +10,4 @@ type Task struct {
 	Body     string    `json:"body"`
 	Status   string    `json:"status"`
 	Deadline time.Time `json:"deadline"`
-}
-
-type TaskCollection struct {
-	List []Task
-}
-
-func (tc *TaskCollection) DeleteTask(uuid string) {
-
 }
