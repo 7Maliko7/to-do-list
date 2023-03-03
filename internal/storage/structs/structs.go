@@ -16,21 +16,16 @@ type Task struct {
 	Deadline time.Time `json:"deadline"`
 }
 
-type CreateTaskRequest struct {
-	Task
-}
+type CreateTaskRequest Task
 
 type DeleteTaskRequest struct {
 	Uuid string `json:"uuid"`
 }
 
-type UpdateTaskRequest struct {
-	Task
-}
+type UpdateTaskRequest Task
 
 type GetTaskRequest struct {
 	Uuid string `json:"uuid"`
 }
 type GetListTaskRequest struct {
 }
-

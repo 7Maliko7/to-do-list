@@ -3,9 +3,9 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/7Maliko7/to-do-list/internal/core"
 	"github.com/7Maliko7/to-do-list/structs"
 	"github.com/7Maliko7/to-do-list/task"
-	"github.com/google/uuid"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +18,8 @@ const (
 )
 
 var TaskList []task.Task
+
+var Core core.Core
 
 func makeResponse(w http.ResponseWriter, data any) error {
 	w.Header().Set(headerContentType, contentTypeJson)
@@ -60,10 +62,7 @@ func CreateHandler(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			return
 		}
-		newTask.Uuid = uuid.New().String()
-		TaskList = append(TaskList, newTask)
-
-		err = writeFile(TaskList)
+		newTask.Uuid, err = Core.CreateTask(newTask.Name, newTask.Body, newTask.Deadline)
 		if err != nil {
 			e := structs.ErrResponse{
 				Code:    http.StatusInternalServerError,
@@ -73,6 +72,7 @@ func CreateHandler(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			return
 		}
+
 		err = makeResponse(w, newTask)
 		if err != nil {
 			log.Print(err)
@@ -91,7 +91,7 @@ func CreateHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		err := makeResponse(w, TaskList)
+		taskList, err := Core.GetTaskList()
 		if err != nil {
 			e := structs.ErrResponse{
 				Code:    http.StatusInternalServerError,
@@ -101,7 +101,17 @@ func ListHandler(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			return
 		}
-		return
+
+		err = makeResponse(w, taskList)
+		if err != nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
+		}
 	}
 	e := structs.ErrResponse{
 		Code:    http.StatusMethodNotAllowed,
@@ -115,20 +125,26 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		var ReadTask task.Task
 		_ = json.NewDecoder(r.Body).Decode(&ReadTask)
-		for _, v := range TaskList {
-			if v.Uuid == ReadTask.Uuid {
-				err := makeResponse(w, v)
-				if err != nil {
-					e := structs.ErrResponse{
-						Code:    http.StatusInternalServerError,
-						Message: err.Error(),
-					}
-					makeErrorResponse(w, e)
-					log.Print(err)
-					return
-				}
-				return
+		OneTask, err := Core.GetTask(ReadTask.Uuid)
+		if err != nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
 			}
+
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
+		}
+		err = makeResponse(w, OneTask)
+		if err != nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
 		}
 		e := structs.ErrResponse{
 			Code:    http.StatusNotFound,
@@ -137,6 +153,7 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 		makeErrorResponse(w, e)
 		return
 	}
+
 	e := structs.ErrResponse{
 		Code:    http.StatusMethodNotAllowed,
 		Message: fmt.Sprintf("expect method GET at /get, got %v", r.Method),
@@ -149,39 +166,48 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodDelete {
 		var DeleteTask task.Task
 		_ = json.NewDecoder(r.Body).Decode(&DeleteTask)
-		for i, v := range TaskList {
-			if v.Uuid == DeleteTask.Uuid {
-				TaskList = append(TaskList[:i], TaskList[i+1:]...)
-				err := writeFile(TaskList)
-				if err != nil {
-					e := structs.ErrResponse{
-						Code:    http.StatusInternalServerError,
-						Message: err.Error(),
-					}
-					makeErrorResponse(w, e)
-					log.Print(err)
-					return
-				}
-				err = makeResponse(w, TaskList)
-				if err != nil {
-					e := structs.ErrResponse{
-						Code:    http.StatusInternalServerError,
-						Message: err.Error(),
-					}
-					makeErrorResponse(w, e)
-					log.Print(err)
-					return
-				}
-				return
+		taskList, err := Core.GetTaskList()
+		if err != nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
 			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
 		}
-		e := structs.ErrResponse{
-			Code:    http.StatusNotFound,
-			Message: "element not found",
+		if taskList == nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
 		}
-		makeErrorResponse(w, e)
+		err = Core.DeleteTask(DeleteTask.Uuid)
+		if err != nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
+		}
+		err = makeResponse(w, structs.OkResponse{Code: 200})
+		if err != nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
+		}
 		return
 	}
+
 	e := structs.ErrResponse{
 		Code:    http.StatusMethodNotAllowed,
 		Message: fmt.Sprintf("expect method DELETE at /delete, got %v", r.Method),
@@ -194,45 +220,51 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPatch {
 		var PatchTask task.Task
 		_ = json.NewDecoder(r.Body).Decode(&PatchTask)
-		for i, _ := range TaskList {
-			if TaskList[i].Uuid == PatchTask.Uuid {
-				TaskList[i].Name = PatchTask.Name
-				TaskList[i].Body = PatchTask.Body
-				TaskList[i].Deadline = PatchTask.Deadline
-				TaskList[i].Status = PatchTask.Status
-				err := writeFile(TaskList)
-				if err != nil {
-					e := structs.ErrResponse{
-						Code:    http.StatusInternalServerError,
-						Message: err.Error(),
-					}
-					makeErrorResponse(w, e)
-					log.Print(err)
-					return
-				}
-				err = makeResponse(w, TaskList)
-				if err != nil {
-					e := structs.ErrResponse{
-						Code:    http.StatusInternalServerError,
-						Message: err.Error(),
-					}
-					makeErrorResponse(w, e)
-					log.Print(err)
-					return
-				}
-			}
+		taskList, err := Core.GetTaskList()
+		if err != nil {
 			e := structs.ErrResponse{
-				Code:    http.StatusNotFound,
-				Message: "element not found",
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
 			}
 			makeErrorResponse(w, e)
+			log.Print(err)
 			return
 		}
-		e := structs.ErrResponse{
-			Code:    http.StatusMethodNotAllowed,
-			Message: fmt.Sprintf("expect method PATCH at /patch, got %v", r.Method),
+		if taskList == nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
 		}
-		makeErrorResponse(w, e)
-		return
+		err = Core.UpdateTask(PatchTask.Uuid, PatchTask.Name, PatchTask.Body, PatchTask.Status, PatchTask.Deadline)
+		if err != nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
+		}
+		err = makeResponse(w, structs.OkResponse{Code: 200})
+		if err != nil {
+			e := structs.ErrResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+			makeErrorResponse(w, e)
+			log.Print(err)
+			return
+		}
 	}
+
+	e := structs.ErrResponse{
+		Code:    http.StatusMethodNotAllowed,
+		Message: fmt.Sprintf("expect method PATCH at /patch, got %v", r.Method),
+	}
+	makeErrorResponse(w, e)
+	return
 }

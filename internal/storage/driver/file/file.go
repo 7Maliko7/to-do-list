@@ -21,7 +21,7 @@ func New(fileName string) FileStorage {
 
 func (fs *FileStorage) CreateTask(req structs.CreateTaskRequest) error {
 	tasks := TaskList{}
-	err := fs.readFile(tasks)
+	err := fs.readFile(&tasks)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func (fs *FileStorage) CreateTask(req structs.CreateTaskRequest) error {
 }
 func (fs *FileStorage) DeleteTask(req structs.DeleteTaskRequest) error {
 	tasks := TaskList{}
-	err := fs.readFile(tasks)
+	err := fs.readFile(&tasks)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (fs *FileStorage) DeleteTask(req structs.DeleteTaskRequest) error {
 }
 func (fs *FileStorage) GetTask(req structs.GetTaskRequest) (structs.GetTaskResponse, error) {
 	tasks := TaskList{}
-	err := fs.readFile(tasks)
+	err := fs.readFile(&tasks)
 	if err != nil {
 		return structs.GetTaskResponse{}, err
 	}
@@ -77,7 +77,7 @@ func (fs *FileStorage) GetTask(req structs.GetTaskRequest) (structs.GetTaskRespo
 }
 func (fs *FileStorage) GetListTask(req structs.GetListTaskRequest) (structs.GetListTaskResponse, error) {
 	tasks := TaskList{}
-	err := fs.readFile(tasks)
+	err := fs.readFile(&tasks)
 	if err != nil {
 		return structs.GetListTaskResponse{}, err
 	}
@@ -96,7 +96,7 @@ func (fs *FileStorage) GetListTask(req structs.GetListTaskRequest) (structs.GetL
 }
 func (fs *FileStorage) UpdateTask(req structs.UpdateTaskRequest) error {
 	tasks := TaskList{}
-	err := fs.readFile(tasks)
+	err := fs.readFile(&tasks)
 	if err != nil {
 		return err
 	}
