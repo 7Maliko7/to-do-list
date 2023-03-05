@@ -3,50 +3,19 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/7Maliko7/to-do-list/handler/structs"
 	"github.com/7Maliko7/to-do-list/internal/core"
-	"github.com/7Maliko7/to-do-list/structs"
 	"github.com/7Maliko7/to-do-list/task"
 	"log"
 	"net/http"
-	"os"
 )
 
 const (
 	headerContentType = "Content-Type"
 	contentTypeJson   = "application/json"
-	TaskFileName      = "tasks.json"
 )
 
-var TaskList []task.Task
-
 var Core core.Core
-
-func makeResponse(w http.ResponseWriter, data any) error {
-	w.Header().Set(headerContentType, contentTypeJson)
-	err := json.NewEncoder(w).Encode(data)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func makeErrorResponse(w http.ResponseWriter, e structs.ErrResponse) {
-	msg, _ := json.Marshal(e)
-	http.Error(w, string(msg), e.Code)
-}
-
-func writeFile(taskList []task.Task) error {
-	bytes, err := json.Marshal(taskList)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(TaskFileName, bytes, 0777)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func CreateHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
@@ -119,8 +88,8 @@ func ListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	makeErrorResponse(w, e)
 	return
-
 }
+
 func GetHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		var ReadTask task.Task
@@ -160,8 +129,8 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	makeErrorResponse(w, e)
 	return
-
 }
+
 func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodDelete {
 		var DeleteTask task.Task
@@ -267,4 +236,18 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	makeErrorResponse(w, e)
 	return
+}
+
+func makeResponse(w http.ResponseWriter, data any) error {
+	w.Header().Set(headerContentType, contentTypeJson)
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func makeErrorResponse(w http.ResponseWriter, e structs.ErrResponse) {
+	msg, _ := json.Marshal(e)
+	http.Error(w, string(msg), e.Code)
 }
