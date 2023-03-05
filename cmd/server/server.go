@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/7Maliko7/to-do-list/handler"
 	"github.com/7Maliko7/to-do-list/internal/core"
+	"github.com/7Maliko7/to-do-list/internal/handler"
 	"github.com/7Maliko7/to-do-list/internal/storage/driver/file"
 	"log"
 	"net/http"
@@ -14,7 +14,7 @@ func main() {
 	handler.Core = core
 	http.HandleFunc("/create", handler.CreateHandler)
 	http.HandleFunc("/list", handler.ListHandler)
-	http.HandleFunc("/", handler.GetHandler)
+	http.HandleFunc("/get", handler.GetHandler)
 	http.HandleFunc("/delete", handler.DeleteHandler)
 	http.HandleFunc("/update", handler.UpdateHandler)
 
