@@ -107,6 +107,7 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		var ReadTask structs.GetTaskRequest
 		_ = json.NewDecoder(r.Body).Decode(&ReadTask)
+
 		OneTask, err := Core.GetTask(ReadTask.Uuid)
 		if err != nil {
 			e := structs.ErrResponse{
@@ -158,6 +159,14 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodDelete {
 		var DeleteTask structs.DeleteTaskRequest
 		_ = json.NewDecoder(r.Body).Decode(&DeleteTask)
+		if !isExist(DeleteTask.Uuid) {
+			e := structs.ErrResponse{
+				Code:    http.StatusNotFound,
+				Message: "Task not found",
+			}
+			makeErrorResponse(w, e)
+			return
+		}
 		taskList, err := Core.GetTaskList()
 		if err != nil {
 			e := structs.ErrResponse{
@@ -212,6 +221,15 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPatch {
 		var PatchTask structs.UpdateTaskRequest
 		_ = json.NewDecoder(r.Body).Decode(&PatchTask)
+		if !isExist(PatchTask.Uuid) {
+			e := structs.ErrResponse{
+				Code:    http.StatusNotFound,
+				Message: "Task not found",
+			}
+			makeErrorResponse(w, e)
+			return
+		}
+
 		taskList, err := Core.GetTaskList()
 		if err != nil {
 			e := structs.ErrResponse{
@@ -273,6 +291,19 @@ func makeResponse(w http.ResponseWriter, data any) error {
 }
 
 func makeErrorResponse(w http.ResponseWriter, e structs.ErrResponse) {
-	msg, _ := json.Marshal(e)
-	http.Error(w, string(msg), e.Code)
+	w.Header().Set(headerContentType, contentTypeJson)
+	w.WriteHeader(e.Code)
+	_ = json.NewEncoder(w).Encode(e)
+}
+
+func isExist(uuid string) bool {
+	OneTask, err := Core.GetTask(uuid)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	if OneTask.Uuid == "" {
+		return false
+	}
+	return true
 }
