@@ -93,6 +93,7 @@ func ListHandler(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			return
 		}
+		return
 	}
 	e := structs.ErrResponse{
 		Code:    http.StatusMethodNotAllowed,
@@ -117,6 +118,14 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			return
 		}
+		if OneTask.Uuid == "" {
+			e := structs.ErrResponse{
+				Code:    http.StatusNotFound,
+				Message: "Task not found",
+			}
+			makeErrorResponse(w, e)
+			return
+		}
 
 		err = makeResponse(w, structs.GetTaskResponse{
 			Uuid:     OneTask.Uuid,
@@ -134,11 +143,6 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			return
 		}
-		e := structs.ErrResponse{
-			Code:    http.StatusNotFound,
-			Message: "Task not found",
-		}
-		makeErrorResponse(w, e)
 		return
 	}
 
@@ -248,6 +252,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			return
 		}
+		return
 	}
 
 	e := structs.ErrResponse{
