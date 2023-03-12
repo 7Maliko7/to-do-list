@@ -17,7 +17,7 @@ type Task struct {
 	Uuid     string
 	Name     string
 	Body     string
-	Status   string
+	Status   bool
 	Deadline time.Time
 }
 
@@ -85,7 +85,7 @@ func (c *Core) GetTask(uuid string) (Task, error) {
 	}, nil
 }
 
-func (c *Core) UpdateTask(Uuid, Name, Body, Status string, deadline time.Time) error {
+func (c *Core) UpdateTask(Uuid, Name, Body string, Status bool, deadline time.Time) error {
 	req := structs.UpdateTaskRequest{
 		Uuid:     Uuid,
 		Name:     Name,
