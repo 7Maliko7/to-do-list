@@ -15,6 +15,7 @@ const (
 
 type DbStorage struct {
 	conn *pgx.Conn
+	ctx  *context.Context
 }
 
 func (fs *DbStorage) Close(ctx context.Context) error {
@@ -30,7 +31,7 @@ func New(ctx context.Context, url string) (DbStorage, error) {
 		return DbStorage{}, err
 	}
 
-	return DbStorage{conn}, nil
+	return DbStorage{conn, &ctx}, nil
 }
 
 func (fs *DbStorage) CreateTask(req structs.CreateTaskRequest) error {
@@ -71,6 +72,7 @@ func (fs *DbStorage) DeleteTask(req structs.DeleteTaskRequest) error {
 	return nil
 }
 func (fs *DbStorage) GetTask(req structs.GetTaskRequest) (structs.GetTaskResponse, error) {
+	err = fs.conn.QueryRow(&context.Background(), "select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
 	tasks := TaskList{}
 	err := fs.readFile(&tasks)
 	if err != nil {
