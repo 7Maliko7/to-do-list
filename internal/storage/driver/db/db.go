@@ -1,11 +1,9 @@
-package file
+package db
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/7Maliko7/to-do-list/internal/storage/structs"
 	"github.com/jackc/pgx/v5"
-	"os"
 	"time"
 )
 
@@ -15,7 +13,7 @@ const (
 
 type DbStorage struct {
 	conn *pgx.Conn
-	ctx  *context.Context
+	ctx  context.Context
 }
 
 func (fs *DbStorage) Close(ctx context.Context) error {
@@ -23,6 +21,7 @@ func (fs *DbStorage) Close(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	return nil
 }
 
 func New(ctx context.Context, url string) (DbStorage, error) {
@@ -31,7 +30,7 @@ func New(ctx context.Context, url string) (DbStorage, error) {
 		return DbStorage{}, err
 	}
 
-	return DbStorage{conn, &ctx}, nil
+	return DbStorage{conn, ctx}, nil
 }
 
 func (fs *DbStorage) CreateTask(req structs.CreateTaskRequest) error {
@@ -72,24 +71,12 @@ func (fs *DbStorage) DeleteTask(req structs.DeleteTaskRequest) error {
 	return nil
 }
 func (fs *DbStorage) GetTask(req structs.GetTaskRequest) (structs.GetTaskResponse, error) {
-	err = fs.conn.QueryRow(&context.Background(), "select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
-	tasks := TaskList{}
-	err := fs.readFile(&tasks)
+	task := structs.GetTaskResponse{}
+	err := fs.conn.QueryRow(fs.ctx, "select uuid,name, body, status, deadline from task.list where uuid=$1", req.Uuid).Scan(&task.Uuid, &task.Name, &task.Body, &task.Status, &task.Deadline)
 	if err != nil {
 		return structs.GetTaskResponse{}, err
 	}
-	for _, v := range tasks {
-		if v.Uuid == req.Uuid {
-			return structs.GetTaskResponse{
-				Uuid:     v.Uuid,
-				Name:     v.Name,
-				Body:     v.Body,
-				Status:   v.Status,
-				Deadline: v.Deadline,
-			}, nil
-		}
-	}
-	return structs.GetTaskResponse{}, nil
+	return task, nil
 }
 func (fs *DbStorage) GetListTask(req structs.GetListTaskRequest) (structs.GetListTaskResponse, error) {
 	tasks := TaskList{}
@@ -132,27 +119,11 @@ func (fs *DbStorage) UpdateTask(req structs.UpdateTaskRequest) error {
 }
 
 func (fs *DbStorage) writeFile(data interface{}) error {
-	bytes, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
 
-	err = os.WriteFile(fs.dbName, bytes, 0777)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
 func (fs *DbStorage) readFile(data interface{}) error {
-	file, err := os.OpenFile(fs.dbName, os.O_RDONLY, 0755)
-	if err != nil {
-		return err
-	}
-	err = json.NewDecoder(file).Decode(&data)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+
 	return nil
 }
