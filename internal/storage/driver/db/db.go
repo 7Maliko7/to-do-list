@@ -2,9 +2,9 @@ package db
 
 import (
 	"context"
+	"errors"
 	"github.com/7Maliko7/to-do-list/internal/storage/structs"
 	"github.com/jackc/pgx/v5"
-	"time"
 )
 
 const (
@@ -34,41 +34,26 @@ func New(ctx context.Context, url string) (DbStorage, error) {
 }
 
 func (fs *DbStorage) CreateTask(req structs.CreateTaskRequest) error {
-	tasks := TaskList{}
-	err := fs.readFile(&tasks)
+	var ok bool
+	err := fs.conn.QueryRow(fs.ctx, "insert into task.list (uuid, name,body,status,deadline) values ($1,$2,$3,$4,$5);", req.Uuid, req.Name, req.Body, req.Status, req.Deadline).Scan(&ok)
 	if err != nil {
 		return err
 	}
-	tasks = append(tasks, Task{
-		Uuid:     req.Uuid,
-		Name:     req.Name,
-		Body:     req.Body,
-		Status:   req.Status,
-		Deadline: time.Time{},
-	})
-	err = fs.writeFile(tasks)
-	if err != nil {
-		return err
+	if ok {
+		return nil
 	}
-	return nil
+	return errors.New("Not Inserted")
 }
 func (fs *DbStorage) DeleteTask(req structs.DeleteTaskRequest) error {
-	tasks := TaskList{}
-	err := fs.readFile(&tasks)
+	var ok bool
+	err := fs.conn.QueryRow(fs.ctx, "delete from task.list where uuid=$1", req.Uuid).Scan(&ok)
 	if err != nil {
 		return err
 	}
-	for i, v := range tasks {
-		if v.Uuid == req.Uuid {
-			tasks = append(tasks[:i], tasks[i+1:]...)
-		}
+	if ok {
+		return nil
 	}
-	err = fs.writeFile(tasks)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return errors.New("Not Deleted")
 }
 func (fs *DbStorage) GetTask(req structs.GetTaskRequest) (structs.GetTaskResponse, error) {
 	task := structs.GetTaskResponse{}
@@ -79,43 +64,24 @@ func (fs *DbStorage) GetTask(req structs.GetTaskRequest) (structs.GetTaskRespons
 	return task, nil
 }
 func (fs *DbStorage) GetListTask(req structs.GetListTaskRequest) (structs.GetListTaskResponse, error) {
-	tasks := TaskList{}
-	err := fs.readFile(&tasks)
+	taskList := structs.GetListTaskResponse{}
+	err := fs.conn.QueryRow(fs.ctx, "select * from task.list").Scan(&taskList.List)
 	if err != nil {
 		return structs.GetListTaskResponse{}, err
 	}
-	list := make([]structs.Task, 0, len(tasks))
-	for _, v := range tasks {
-		list = append(list, structs.Task{
-			Uuid:     v.Uuid,
-			Name:     v.Name,
-			Body:     v.Body,
-			Status:   v.Status,
-			Deadline: time.Time{},
-		})
-	}
-
-	return structs.GetListTaskResponse{List: list}, err
+	return taskList, nil
 }
+
 func (fs *DbStorage) UpdateTask(req structs.UpdateTaskRequest) error {
-	tasks := TaskList{}
-	err := fs.readFile(&tasks)
+	var ok bool
+	err := fs.conn.QueryRow(fs.ctx, "update task.list set (name,body,status,deadline) = ($2,$3,$4,$5) where uuid=$1;", req.Uuid, req.Name, req.Body, req.Status, req.Deadline).Scan(&ok)
 	if err != nil {
 		return err
 	}
-	for i, _ := range tasks {
-		if tasks[i].Uuid == req.Uuid {
-			tasks[i].Name = req.Name
-			tasks[i].Body = req.Body
-			tasks[i].Deadline = req.Deadline
-			tasks[i].Status = req.Status
-		}
+	if ok {
+		return nil
 	}
-	err = fs.writeFile(tasks)
-	if err != nil {
-		return err
-	}
-	return nil
+	return errors.New("Not Updated")
 }
 
 func (fs *DbStorage) writeFile(data interface{}) error {
